@@ -116,9 +116,9 @@ test.describe('Culture Compass AI - E2E Core Journeys', () => {
     await page.click('button:has-text("Stamp Passport")')
 
     // Verify stamp card was added to the gallery
-    await expect(page.locator('h4:has-text("Kyoto Matcha")')).toBeVisible()
+    await expect(page.locator('h4:has-text("Kyoto Matcha")').first()).toBeVisible()
     await expect(
-      page.locator('text=Traditional green tea served in Arashiyama ceremony.'),
+      page.locator('text=Traditional green tea served in Arashiyama ceremony.').first(),
     ).toBeVisible()
   })
 

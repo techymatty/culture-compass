@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { getCurrentProfile } from '@/features/profile/actions/profileDb'
 
 const CreateJournalSchema = z.object({
-  trip_id: z.string().uuid().nullable().optional(),
+  trip_id: z.string().nullable().optional(),
   title: z.string().min(1).max(150),
   raw_content: z.string().min(1),
   generated_narrative: z.string().nullable().optional(),

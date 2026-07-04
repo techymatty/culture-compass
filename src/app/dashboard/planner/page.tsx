@@ -7,12 +7,16 @@ import {
   createTripAction,
   getUserTrips,
   deleteTripAction,
+  getTripAction,
+  getItineraryDaysAction,
+  getItineraryActivitiesAction,
+  toggleActivityCompletionAction,
 } from '@/features/itineraries/actions/itineraryDb'
 import {
   aiGenerateItinerary,
   aiAnalyzeSustainability,
 } from '@/features/itineraries/actions/itineraryAi'
-import { db, Destination, Trip, ItineraryDay, ItineraryActivity } from '@/lib/db'
+import { Destination, Trip, ItineraryDay, ItineraryActivity } from '@/lib/db'
 import {
   Calendar,
   MapPin,
@@ -76,16 +80,16 @@ function PlannerComponent() {
 
     startTransition(async () => {
       try {
-        const trip = trips.find((t) => t.id === activeTripId) || (await db.trips.get(activeTripId))
+        const trip = trips.find((t) => t.id === activeTripId) || (await getTripAction(activeTripId))
         if (!trip) return
         setActiveTrip(trip)
 
-        const dayList = await db.itineraryDays.list(trip.id)
+        const dayList = await getItineraryDaysAction(trip.id)
         setDays(dayList)
 
         if (dayList.length > 0) {
           setSelectedDayId(dayList[0].id)
-          const actList = await db.itineraryActivities.list(dayList[0].id)
+          const actList = await getItineraryActivitiesAction(dayList[0].id)
           setActivities(actList)
         }
       } catch (err) {
@@ -98,7 +102,7 @@ function PlannerComponent() {
   const handleDaySelect = async (dayId: string) => {
     setSelectedDayId(dayId)
     try {
-      const actList = await db.itineraryActivities.list(dayId)
+      const actList = await getItineraryActivitiesAction(dayId)
       setActivities(actList)
     } catch (err) {
       console.error(err)
@@ -139,45 +143,12 @@ function PlannerComponent() {
           end_date: endDate,
           budget_tier: budget,
           travel_style: style,
+          sustainability,
+          itinerary: rawItinerary,
         })
 
         if (tripResult.success && tripResult.data) {
           const trip = tripResult.data as Trip
-          // Overwrite Sustainability grades in DB record
-          await db.trips.update(trip.id, {
-            sustainability_grade: sustainability.sustainability_grade,
-            carbon_footprint_kg: sustainability.carbon_footprint_kg,
-          })
-
-          // Save generated activities into Database
-          const dayRecords = await db.itineraryDays.list(trip.id)
-          for (const rawDay of rawItinerary.days) {
-            const matchedDay = dayRecords.find((d) => d.day_number === rawDay.day_number)
-            if (matchedDay) {
-              // Update day notes
-              await db.itineraryDays.create({
-                ...matchedDay,
-                notes: rawDay.notes,
-              } as ItineraryDay)
-
-              // Insert activities
-              for (const act of rawDay.activities) {
-                await db.itineraryActivities.create({
-                  itinerary_day_id: matchedDay.id,
-                  start_time: act.start_time,
-                  end_time: act.end_time,
-                  title: act.title,
-                  description: act.description,
-                  activity_type: act.activity_type,
-                  transport_mode: act.transport_mode,
-                  cost: act.cost,
-                  lat: act.lat || null,
-                  lng: act.lng || null,
-                })
-              }
-            }
-          }
-
           // Reload trips and navigate to new trip
           const activeTrips = await getUserTrips()
           setTrips(activeTrips)
@@ -192,8 +163,8 @@ function PlannerComponent() {
   // Toggle activity completion status
   const handleToggleActivity = async (activityId: string, currentStatus: boolean) => {
     try {
-      await db.itineraryActivities.toggleCompletion(activityId, !currentStatus)
-      const actList = await db.itineraryActivities.list(selectedDayId)
+      await toggleActivityCompletionAction(activityId, !currentStatus)
+      const actList = await getItineraryActivitiesAction(selectedDayId)
       setActivities(actList)
     } catch (e) {
       console.error(e)

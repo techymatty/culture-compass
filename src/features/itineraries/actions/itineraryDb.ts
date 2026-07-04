@@ -7,12 +7,14 @@ import { revalidatePath } from 'next/cache'
 import { getCurrentProfile } from '@/features/profile/actions/profileDb'
 
 const CreateTripSchema = z.object({
-  destination_id: z.string().uuid(),
+  destination_id: z.string(),
   title: z.string().min(1).max(150),
   start_date: z.string().date(),
   end_date: z.string().date(),
   budget_tier: z.enum(['Budget', 'Moderate', 'Luxury']),
   travel_style: z.enum(['Fast-paced', 'Relaxed']),
+  sustainability: z.any().optional(),
+  itinerary: z.any().optional(),
 })
 
 async function getAuthUserId() {
@@ -51,24 +53,55 @@ export async function createTripAction(payload: unknown) {
       end_date: validated.end_date,
       budget_tier: validated.budget_tier,
       travel_style: validated.travel_style,
-      sustainability_grade: sustainabilityGrade,
-      carbon_footprint_kg: carbonFootprintKg,
+      sustainability_grade: validated.sustainability?.sustainability_grade || sustainabilityGrade,
+      carbon_footprint_kg: validated.sustainability?.carbon_footprint_kg || carbonFootprintKg,
     })
 
-    // Auto-populate itinerary days
-    const start = new Date(validated.start_date)
-    const end = new Date(validated.end_date)
-    const durationDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    // Populate itinerary days and activities
+    if (validated.itinerary && Array.isArray(validated.itinerary.days)) {
+      const start = new Date(validated.start_date)
+      for (const rawDay of validated.itinerary.days) {
+        const currentDayDate = new Date(start)
+        currentDayDate.setDate(start.getDate() + rawDay.day_number - 1)
+        const dayRecord = await db.itineraryDays.create({
+          trip_id: trip.id,
+          day_number: rawDay.day_number,
+          date: currentDayDate.toISOString().split('T')[0],
+          notes: rawDay.notes || `Day ${rawDay.day_number} exploring landmarks.`,
+        })
+        if (Array.isArray(rawDay.activities)) {
+          for (const act of rawDay.activities) {
+            await db.itineraryActivities.create({
+              itinerary_day_id: dayRecord.id,
+              start_time: act.start_time,
+              end_time: act.end_time,
+              title: act.title,
+              description: act.description,
+              activity_type: act.activity_type,
+              transport_mode: act.transport_mode,
+              cost: act.cost,
+              lat: act.lat || null,
+              lng: act.lng || null,
+            })
+          }
+        }
+      }
+    } else {
+      // Auto-populate fallback itinerary days
+      const start = new Date(validated.start_date)
+      const end = new Date(validated.end_date)
+      const durationDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
 
-    for (let i = 1; i <= durationDays; i++) {
-      const currentDayDate = new Date(start)
-      currentDayDate.setDate(start.getDate() + i - 1)
-      await db.itineraryDays.create({
-        trip_id: trip.id,
-        day_number: i,
-        date: currentDayDate.toISOString().split('T')[0],
-        notes: `Day ${i} exploring the cultural landmarks.`,
-      })
+      for (let i = 1; i <= durationDays; i++) {
+        const currentDayDate = new Date(start)
+        currentDayDate.setDate(start.getDate() + i - 1)
+        await db.itineraryDays.create({
+          trip_id: trip.id,
+          day_number: i,
+          date: currentDayDate.toISOString().split('T')[0],
+          notes: `Day ${i} exploring the cultural landmarks.`,
+        })
+      }
     }
 
     revalidatePath('/dashboard')
@@ -99,4 +132,25 @@ export async function deleteTripAction(tripId: string) {
     console.error('Failed to delete trip:', error)
     return { success: false, error: 'Failed to delete trip' }
   }
+}
+
+export async function getTripAction(tripId: string) {
+  await getCurrentProfile()
+  return db.trips.get(tripId)
+}
+
+export async function getItineraryDaysAction(tripId: string) {
+  await getCurrentProfile()
+  return db.itineraryDays.list(tripId)
+}
+
+export async function getItineraryActivitiesAction(dayId: string) {
+  await getCurrentProfile()
+  return db.itineraryActivities.list(dayId)
+}
+
+export async function toggleActivityCompletionAction(activityId: string, completed: boolean) {
+  await getCurrentProfile()
+  await db.itineraryActivities.toggleCompletion(activityId, completed)
+  return { success: true }
 }

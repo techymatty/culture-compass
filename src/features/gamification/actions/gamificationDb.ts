@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { getCurrentProfile } from '@/features/profile/actions/profileDb'
 
 const AddFoodStampSchema = z.object({
-  destination_id: z.string().uuid(),
+  destination_id: z.string(),
   dish_name: z.string().min(1).max(100),
   cultural_significance: z.string().min(1),
   photo_url: z.string().url().nullable().optional(),
