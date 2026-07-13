@@ -46,6 +46,7 @@ export default function JournalPage() {
 
   useEffect(() => {
     loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Handle diary save
