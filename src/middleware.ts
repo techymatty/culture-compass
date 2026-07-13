@@ -6,6 +6,7 @@ const isProtectedRoute = createRouteMatcher(['/dashboard(.*)'])
 const isClerkConfigured =
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
   !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.includes('dummy') &&
+  !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.includes('ZHVtbXk') &&
   process.env.CLERK_SECRET_KEY &&
   !process.env.CLERK_SECRET_KEY.includes('dummy')
 

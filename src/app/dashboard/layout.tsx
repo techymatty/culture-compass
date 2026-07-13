@@ -15,7 +15,8 @@ import {
 
 const isClerkConfigured = !!(
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
-  !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.includes('dummy')
+  !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.includes('dummy') &&
+  !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.includes('ZHVtbXk')
 )
 
 const NAV_ITEMS = [
